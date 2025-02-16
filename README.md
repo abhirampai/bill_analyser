@@ -1,6 +1,6 @@
 # Welcome to Bill Analyzer App 👋
 
-This is an expo app that runs ocr with the help of google Gemini
+This is an expo app that runs ocr with the help of Google Gemini
 
 ## Get started
 
