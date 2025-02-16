@@ -4,7 +4,7 @@ import { StyleSheet, Button, Image, Text, ScrollView, View, Dimensions } from "r
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from 'expo-clipboard';
 
-import ocr from "./api/ocr";
+import { ocr } from "./gemini/gemini";
 
 export default function Index() {
   const [image, setImage] = useState<string | null>(null);
@@ -19,21 +19,18 @@ export default function Index() {
     setAnalysis(null)
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],
-      allowsEditing: true,
       base64: true,
-      aspect: [4, 3],
       quality: 1
     });
-
-    console.log(result);
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setImage(uri);
       const base64Data = result.assets[0].base64;
+      const mimeType = result.assets[0].mimeType;
       try {
-        const resultFromApi = await ocr.ocrApi(base64Data);
-        setAnalysis(resultFromApi.data.response);
+        const resultFromApi = await ocr(base64Data, mimeType);
+        setAnalysis(resultFromApi);
       } catch (error) {
         console.log(error);
       }
