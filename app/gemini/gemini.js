@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const prompt = `Can you run ocr on this image and give the output as json, Also return isBill true if the image is a bill, also return error if the image is not a bill. Also return a short description & category of the bill.
+const prompt = `Can you run ocr on this image and give the output as json, return isBill true if the image is a bill, return error if the image is not a bill.
+Return a short description & category of the bill.
+The icon of the category should be a valid icon name from the Ionicons library from react-native-vector-icons.
 
 Use this JSON schema:
 
@@ -8,7 +10,10 @@ Use this JSON schema:
   "type": "object",
   "properties": {
     "description": { "type": "string" },
-    "category": { "type": "string" },
+    "category": { "type": "object", "properties": {
+      "name": { "type": "string" },
+      "icon": { "type": "string" }
+    } },
     "items": {
       "type": "array",
       "items": {

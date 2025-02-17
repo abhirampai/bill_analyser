@@ -48,9 +48,12 @@ const ResponseTable = ({ visible, onClose, billData, isLoading }) => {
               <Text style={styles.description}>
                 Description: {billData.description}
               </Text>
-              <Text style={styles.description}>
-                Category: {billData.category}
-              </Text>
+              <View style={styles.categoryContainer}>
+                <Text style={styles.description}>
+                  Category: {billData.category.name}
+                </Text>
+                <Ionicons name={billData.category.icon} size={24} />
+              </View>
               <Text style={styles.tableTitle}>Items</Text>
               <View style={styles.header}>
                 <Text style={styles.headerCell}>Item</Text>
@@ -159,6 +162,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  categoryContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 8,
+    marginBottom: 8,
   },
 });
 
