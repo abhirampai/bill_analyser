@@ -45,6 +45,12 @@ const ResponseTable = ({ visible, onClose, billData, isLoading }) => {
             <Text>No bill data available.</Text>
           ) : (
             <>
+              <Text style={styles.description}>
+                Description: {billData.description}
+              </Text>
+              <Text style={styles.description}>
+                Category: {billData.category}
+              </Text>
               <Text style={styles.tableTitle}>Items</Text>
               <View style={styles.header}>
                 <Text style={styles.headerCell}>Item</Text>
@@ -106,6 +112,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 8,
     marginTop: 16, // Add some top margin
+  },
+  description: {
+    fontSize: 18,
+    marginBottom: 2,
   },
   header: {
     flexDirection: "row",

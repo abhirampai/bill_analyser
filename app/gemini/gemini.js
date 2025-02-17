@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const prompt = `Can you run ocr on this image and give the output as json, Also return isBill true if the image is a bill, also return error if the image is not a bill. Also return a short description of the bill.
+const prompt = `Can you run ocr on this image and give the output as json, Also return isBill true if the image is a bill, also return error if the image is not a bill. Also return a short description & category of the bill.
 
 Use this JSON schema:
 
@@ -8,6 +8,7 @@ Use this JSON schema:
   "type": "object",
   "properties": {
     "description": { "type": "string" },
+    "category": { "type": "string" },
     "items": {
       "type": "array",
       "items": {
