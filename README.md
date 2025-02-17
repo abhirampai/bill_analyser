@@ -35,4 +35,4 @@ You can start developing by editing the files inside the **app** directory. This
 5. Replace the Api key with the key generated in step 3.
 
 ### Screenshot
-<img src="./assets/app_screenshot.jpeg"/>
+[![Bill analyser demo](https://img.youtube.com/vi/fsxCIS2AWR8/0.jpg)](https://youtu.be/fsxCIS2AWR8)
