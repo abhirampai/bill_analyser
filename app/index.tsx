@@ -11,6 +11,7 @@ export default function Index() {
   const [image, setImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
   const [visible, setVisible] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const copyToClipboard = async () => {
     if (analysis) await Clipboard.setStringAsync(analysis);
@@ -25,6 +26,8 @@ export default function Index() {
     });
 
     if (!result.canceled) {
+      setIsLoading(true);
+      setVisible(true);
       const uri = result.assets[0].uri;
       setImage(uri);
       const base64Data = result.assets[0].base64;
@@ -32,9 +35,11 @@ export default function Index() {
       try {
         const resultFromApi = await ocr(base64Data, mimeType);
         setAnalysis(resultFromApi);
-        setVisible(true);
       } catch (error) {
         console.log(error);
+        setVisible(false);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -49,13 +54,12 @@ export default function Index() {
           onPress={copyToClipboard}
         />
       )}
-      {analysis && (
-        <ResponseModal
-          visible={visible}
-          onClose={() => setVisible(false)}
-          billData={analysis}
-        />
-      )}
+      <ResponseModal
+        visible={visible}
+        onClose={() => setVisible(false)}
+        billData={analysis}
+        isLoading={isLoading}
+      />
     </View>
   );
 }

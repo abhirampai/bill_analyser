@@ -7,10 +7,11 @@ import {
   Modal,
   Dimensions,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-const ResponseModal = ({ visible, onClose, billData }) => {
+const ResponseTable = ({ visible, onClose, billData, isLoading }) => {
   const renderItem = ({ item }) => (
     <View style={styles.row}>
       <Text style={styles.cell}>{item.name}</Text>
@@ -27,10 +28,6 @@ const ResponseModal = ({ visible, onClose, billData }) => {
     </View>
   );
 
-  if (!billData || !billData.isBill) {
-    return <Text>No bill data available.</Text>; // Or a better error message/component
-  }
-
   return (
     <Modal
       visible={visible}
@@ -39,40 +36,51 @@ const ResponseModal = ({ visible, onClose, billData }) => {
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
-          <Text style={styles.tableTitle}>Items</Text>
-          <View style={styles.header}>
-            <Text style={styles.headerCell}>Item</Text>
-            <Text style={styles.headerCell}>Qty</Text>
-            <Text style={styles.headerCell}>Unit Price</Text>
-            <Text style={styles.headerCell}>Total</Text>
-          </View>
-          <FlatList
-            data={billData.items}
-            renderItem={renderItem}
-            keyExtractor={(item, index) => index.toString()} // Important for FlatList
-          />
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#0000ff" />
+              <Text>Analyzing...</Text>
+            </View>
+          ) : !billData || !billData.isBill ? (
+            <Text>No bill data available.</Text>
+          ) : (
+            <>
+              <Text style={styles.tableTitle}>Items</Text>
+              <View style={styles.header}>
+                <Text style={styles.headerCell}>Item</Text>
+                <Text style={styles.headerCell}>Qty</Text>
+                <Text style={styles.headerCell}>Unit Price</Text>
+                <Text style={styles.headerCell}>Total</Text>
+              </View>
+              <FlatList
+                data={billData.items}
+                renderItem={renderItem}
+                keyExtractor={(item, index) => index.toString()} // Important for FlatList
+              />
 
-          <Text style={styles.tableTitle}>Taxes</Text>
-          <View style={styles.header}>
-            <Text style={styles.headerCell}>Tax Name</Text>
-            <Text style={styles.headerCell}>Amount</Text>
-          </View>
-          <FlatList
-            data={billData.summary.tax}
-            renderItem={renderTaxItem}
-            keyExtractor={(item, index) => index.toString()}
-          />
+              <Text style={styles.tableTitle}>Taxes</Text>
+              <View style={styles.header}>
+                <Text style={styles.headerCell}>Tax Name</Text>
+                <Text style={styles.headerCell}>Amount</Text>
+              </View>
+              <FlatList
+                data={billData.summary.tax}
+                renderItem={renderTaxItem}
+                keyExtractor={(item, index) => index.toString()}
+              />
 
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total:</Text>
-            <Text style={styles.totalAmount}>
-              ₹{billData.summary.totalAmount.toFixed(2)}
-            </Text>
-          </View>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Total:</Text>
+                <Text style={styles.totalAmount}>
+                  ₹{billData.summary.totalAmount.toFixed(2)}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close-circle" size={40} />
-          </TouchableOpacity>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Ionicons name="close-circle" size={40} />
+        </TouchableOpacity>
       </View>
     </Modal>
   );
@@ -91,6 +99,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     padding: 20,
     borderRadius: 8,
+    height: 650,
   },
   tableTitle: {
     fontSize: 18,
@@ -134,8 +143,13 @@ const styles = StyleSheet.create({
   closeButton: {
     position: "absolute",
     bottom: 35,
-    left: "50%"
+    left: "50%",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
-export default ResponseModal;
+export default ResponseTable;
