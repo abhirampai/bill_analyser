@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const prompt = `Can you run ocr on this image and give the output as json, Also return isBill true if the image is a bill, also return error if the image is not a bill. Also return a short description of the bill.
 
@@ -40,23 +40,28 @@ Use this JSON schema:
   "isBill": {"type": "boolean"},
   "error": {"type": "string"},
   "required": ["items", "summary", "isBill", "error", "description"]
-}`
-const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY)
+}`;
+const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
 
-const model = genAI.getGenerativeModel({ model: 'models/gemini-2.0-flash' });
+const model = genAI.getGenerativeModel({
+  model: "models/gemini-2.0-flash",
+  generationConfig: {
+    responseMimeType: "application/json",
+  },
+});
 
-export const ocr = async(base64Image, mimeType="image/jpeg") => {
+export const ocr = async (base64Image, mimeType = "image/jpeg") => {
   const result = await model.generateContent([
     prompt,
     {
-        inlineData: {
-            data: base64Image,
-            mimeType: mimeType,
-        },
+      inlineData: {
+        data: base64Image,
+        mimeType: mimeType,
+      },
     },
   ]);
 
-  return result.response.text();
+  return JSON.parse(result.response.text());
 };
 
 export default { ocr };

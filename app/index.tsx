@@ -1,26 +1,27 @@
 import { useState } from "react";
-import { StyleSheet, Button, Image, Text, ScrollView, View, Dimensions } from "react-native";
+import { StyleSheet, Button, Image, View, Dimensions } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
-import * as Clipboard from 'expo-clipboard';
+import * as Clipboard from "expo-clipboard";
 
 import { ocr } from "./gemini/gemini";
+import ResponseModal from "./gemini/ResponseModal";
 
 export default function Index() {
   const [image, setImage] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<any>(null);
+  const [visible, setVisible] = useState<boolean>(false);
 
   const copyToClipboard = async () => {
-    if(analysis) await Clipboard.setStringAsync(analysis);
+    if (analysis) await Clipboard.setStringAsync(analysis);
   };
 
   const pickImage = async () => {
-    // No permissions request is necessary for launching the image library
-    setAnalysis(null)
+    setAnalysis(null);
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],
       base64: true,
-      quality: 1
+      quality: 1,
     });
 
     if (!result.canceled) {
@@ -31,6 +32,7 @@ export default function Index() {
       try {
         const resultFromApi = await ocr(base64Data, mimeType);
         setAnalysis(resultFromApi);
+        setVisible(true);
       } catch (error) {
         console.log(error);
       }
@@ -38,21 +40,21 @@ export default function Index() {
   };
 
   return (
-    <View
-     style={styles.container}
-    >
+    <View style={styles.container}>
       <Button title="Pick an image from camera roll" onPress={pickImage} />
-      {image && (
-        <Image
-          source={{ uri: image }}
-          style={styles.image}
+      {image && <Image source={{ uri: image }} style={styles.image} />}
+      {analysis && (
+        <Button
+          title="Click here to copy analysis to Clipboard"
+          onPress={copyToClipboard}
         />
       )}
       {analysis && (
-        <ScrollView>
-          <Button title="Click here to copy analysis to Clipboard" onPress={copyToClipboard} />
-          <Text style={styles.text}>{analysis}</Text>
-        </ScrollView>
+        <ResponseModal
+          visible={visible}
+          onClose={() => setVisible(false)}
+          billData={analysis}
+        />
       )}
     </View>
   );
@@ -62,13 +64,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
   },
   text: {
-    fontSize: 20
+    fontSize: 20,
   },
   image: {
     width: Dimensions.get("window").width,
-    height: Dimensions.get("window").height / 2
-  }
-})
+    height: Dimensions.get("window").height / 2,
+  },
+});
