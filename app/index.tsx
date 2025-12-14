@@ -1,64 +1,29 @@
-import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  Dimensions,
-  Image,
-  ScrollView,
-  StatusBar,
-  useColorScheme,
-} from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, StatusBar, useColorScheme } from "react-native";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 
-import { ocr } from "./gemini/gemini";
-import ResponseModal from "./gemini/ResponseModal";
 import Colors from "./theme/colors";
 
 export default function Index() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
   const isDark = colorScheme === "dark";
 
-  const [image, setImage] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<any>(null); // Keep as any for now to match original
-  const [visible, setVisible] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  const copyToClipboard = async () => {
-    if (analysis)
-      await Clipboard.setStringAsync(JSON.stringify(analysis, null, 2));
-  };
-
   const pickImage = async () => {
-    setAnalysis(null);
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],
-      base64: true,
+      base64: true, // We still need this if we were passing it, but strictly we can rely on URI read in next screen. 
+                     // However, leaving it true costs nothing and allows future flexibility.
       quality: 1,
     });
 
     if (!result.canceled) {
-      setIsLoading(true);
-      setVisible(true);
       const uri = result.assets[0].uri;
-      setImage(uri);
-      const base64Data = result.assets[0].base64;
-      const mimeType = result.assets[0].mimeType;
-      try {
-        const resultFromApi = await ocr(base64Data, mimeType);
-        setAnalysis(resultFromApi);
-      } catch (error) {
-        console.log(error);
-        setVisible(false);
-      } finally {
-        setIsLoading(false);
-      }
+      router.push({ pathname: '/analysis', params: { imageUri: uri } });
     }
   };
 
@@ -158,57 +123,7 @@ export default function Index() {
         </View>
 
         {/* Recent / Preview Section */}
-        {image && (
-          <View style={styles.previewSection}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Last Analysis
-            </Text>
-            <View
-              style={[
-                styles.previewCard,
-                {
-                  backgroundColor: theme.cardBackground,
-                  borderColor: theme.border,
-                },
-              ]}
-            >
-              <Image source={{ uri: image }} style={styles.previewImage} />
-              <View style={styles.previewActions}>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.accent }]}
-                  onPress={() => setVisible(true)}
-                >
-                  <Ionicons name="eye-outline" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>View Details</Text>
-                </TouchableOpacity>
-                {analysis && (
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      styles.secondaryButton,
-                      { backgroundColor: isDark ? "#333" : "#E0E0E0" },
-                    ]}
-                    onPress={copyToClipboard}
-                  >
-                    <Ionicons
-                      name="copy-outline"
-                      size={20}
-                      color={isDark ? "#fff" : "#333"}
-                    />
-                    <Text
-                      style={[
-                        styles.actionButtonText,
-                        { color: isDark ? "#fff" : "#333" },
-                      ]}
-                    >
-                      Copy Data
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </View>
-        )}
+
 
         {/* Features Grid */}
         <View style={styles.featuresSection}>
@@ -235,12 +150,7 @@ export default function Index() {
         </View>
       </ScrollView>
 
-      <ResponseModal
-        visible={visible}
-        onClose={() => setVisible(false)}
-        billData={analysis}
-        isLoading={isLoading}
-      />
+
     </SafeAreaView>
   );
 }
