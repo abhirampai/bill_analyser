@@ -8,23 +8,28 @@ import {
   Dimensions,
   TouchableOpacity,
   ActivityIndicator,
+  useColorScheme,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Colors from "../theme/colors";
 
 const ResponseTable = ({ visible, onClose, billData, isLoading }) => {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
+
   const renderItem = ({ item }) => (
     <View style={styles.row}>
-      <Text style={styles.cell}>{item.name}</Text>
-      <Text style={styles.cell}>{item.quantity.toString()}</Text>
-      <Text style={styles.cell}>{item.unit_price.toFixed(2)}</Text>
-      <Text style={styles.cell}>{item.total_price.toFixed(2)}</Text>
+      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.name}</Text>
+      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.quantity.toString()}</Text>
+      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.unit_price.toFixed(2)}</Text>
+      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.total_price.toFixed(2)}</Text>
     </View>
   );
 
   const renderTaxItem = ({ item }) => (
     <View style={styles.row}>
-      <Text style={styles.cell}>{item.name}</Text>
-      <Text style={styles.cell}>{item.amount.toFixed(2)}</Text>
+      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.name}</Text>
+      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.amount.toFixed(2)}</Text>
     </View>
   );
 
@@ -34,32 +39,32 @@ const ResponseTable = ({ visible, onClose, billData, isLoading }) => {
       transparent={true} // Important for a modal look
       animationType="slide" // Or "fade", "none"
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
+      <View style={[styles.modalContainer, { backgroundColor: theme.modalBackground }]}>
+        <View style={[styles.modalContent, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0000ff" />
-              <Text>Analyzing...</Text>
+              <ActivityIndicator size="large" color="#4A90E2" />
+              <Text style={{ color: theme.text, marginTop: 10 }}>Analyzing...</Text>
             </View>
           ) : !billData || !billData.isBill ? (
-            <Text>No bill data available.</Text>
+            <Text style={{ color: theme.text }}>No bill data available.</Text>
           ) : (
             <>
-              <Text style={styles.description}>
+              <Text style={[styles.description, { color: theme.textSecondary }]}>
                 Description: {billData.description}
               </Text>
               <View style={styles.categoryContainer}>
-                <Text style={styles.description}>
+                <Text style={[styles.description, { color: theme.textSecondary }]}>
                   Category: {billData.category.name}
                 </Text>
-                <Ionicons name={billData.category.icon} size={24} />
+                <Ionicons name={billData.category.icon} size={24} color="#4A90E2" />
               </View>
-              <Text style={styles.tableTitle}>Items</Text>
-              <View style={styles.header}>
-                <Text style={styles.headerCell}>Item</Text>
-                <Text style={styles.headerCell}>Qty</Text>
-                <Text style={styles.headerCell}>Unit Price</Text>
-                <Text style={styles.headerCell}>Total</Text>
+              <Text style={[styles.tableTitle, { color: theme.text }]}>Items</Text>
+              <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.headerCell, { color: theme.text }]}>Item</Text>
+                <Text style={[styles.headerCell, { color: theme.text }]}>Qty</Text>
+                <Text style={[styles.headerCell, { color: theme.text }]}>Unit Price</Text>
+                <Text style={[styles.headerCell, { color: theme.text }]}>Total</Text>
               </View>
               <FlatList
                 data={billData.items}
@@ -67,10 +72,10 @@ const ResponseTable = ({ visible, onClose, billData, isLoading }) => {
                 keyExtractor={(item, index) => index.toString()} // Important for FlatList
               />
 
-              <Text style={styles.tableTitle}>Taxes</Text>
-              <View style={styles.header}>
-                <Text style={styles.headerCell}>Tax Name</Text>
-                <Text style={styles.headerCell}>Amount</Text>
+              <Text style={[styles.tableTitle, { color: theme.text }]}>Taxes</Text>
+              <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.headerCell, { color: theme.text }]}>Tax Name</Text>
+                <Text style={[styles.headerCell, { color: theme.text }]}>Amount</Text>
               </View>
               <FlatList
                 data={billData.summary.tax}
@@ -78,9 +83,9 @@ const ResponseTable = ({ visible, onClose, billData, isLoading }) => {
                 keyExtractor={(item, index) => index.toString()}
               />
 
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total:</Text>
-                <Text style={styles.totalAmount}>
+              <View style={[styles.totalRow, { borderTopColor: theme.border }]}>
+                <Text style={[styles.totalLabel, { color: theme.text }]}>Total:</Text>
+                <Text style={[styles.totalAmount, { color: "#4A90E2" }]}>
                   ₹{billData.summary.totalAmount.toFixed(2)}
                 </Text>
               </View>
@@ -88,7 +93,7 @@ const ResponseTable = ({ visible, onClose, billData, isLoading }) => {
           )}
         </View>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close-circle" size={40} />
+          <Ionicons name="close-circle" size={40} color={theme.icon} />
         </TouchableOpacity>
       </View>
     </Modal>
@@ -102,19 +107,18 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 100,
     paddingBottom: 350,
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent background
   },
   modalContent: {
-    backgroundColor: "white",
     padding: 20,
     borderRadius: 8,
     height: 650,
+    borderWidth: 1,
   },
   tableTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 8,
-    marginTop: 16, // Add some top margin
+    marginTop: 16,
   },
   description: {
     fontSize: 18,
@@ -129,7 +133,7 @@ const styles = StyleSheet.create({
   headerCell: {
     flex: 1,
     fontWeight: "bold",
-    textAlign: "left", // Align text to the left
+    textAlign: "left",
   },
   row: {
     flexDirection: "row",
@@ -137,12 +141,12 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
-    textAlign: "left", // Align text to the left
+    textAlign: "left",
   },
   totalRow: {
     flexDirection: "row",
     marginTop: 16,
-    borderTopWidth: 1, // Add a line above the total
+    borderTopWidth: 1,
     paddingTop: 8,
   },
   totalLabel: {
@@ -156,7 +160,7 @@ const styles = StyleSheet.create({
   closeButton: {
     position: "absolute",
     bottom: 35,
-    left: "50%",
+    left: "45%", // Adjusted center
   },
   loadingContainer: {
     flex: 1,
