@@ -14,14 +14,18 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { readAsStringAsync } from "expo-file-system/legacy";
+
 import * as Clipboard from "expo-clipboard";
+import { Modal, FlatList } from "react-native";
 import Colors from "./theme/colors";
 import { ocr } from "./gemini/gemini";
+import { getExchangeRates } from "./services/exchangeRate";
+import { CURRENCIES } from "./constants/currencies";
 
 export default function Analysis() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { imageUri } = params;
+  const { imageUri, userCurrency } = params;
   
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
@@ -30,9 +34,49 @@ export default function Analysis() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [targetCurrency, setTargetCurrency] = useState<string>(userCurrency as string || 'USD');
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
+  const [rateData, setRateData] = useState<any>(null);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+
   useEffect(() => {
     analyzeImage();
   }, [imageUri]);
+
+  useEffect(() => {
+    if (result?.summary?.currency && result.summary.currency !== targetCurrency) {
+      fetchRates(result.summary.currency);
+    }
+  }, [result, targetCurrency]);
+
+  const fetchRates = async (base: string) => {
+    if (!base) return;
+    const data = await getExchangeRates(base);
+    if (data) {
+      setRateData(data);
+      setExchangeRates(data.rates);
+    }
+  };
+
+  const convertPrice = (price: number) => {
+    if (!exchangeRates || !result?.summary?.currency) return price;
+    if (result.summary.currency === targetCurrency) return price;
+    
+    if (exchangeRates[targetCurrency]) {
+      return price * exchangeRates[targetCurrency];
+    }
+    return price;
+  };
+
+  const formatPrice = (price: number, currency: string) => {
+    const symbol = getCurrencySymbol(currency);
+    return `${symbol}${price.toFixed(2)}`;
+  };
+
+  const getCurrencySymbol = (curr: string) => {
+    const found = CURRENCIES.find(c => c.code === curr);
+    return found ? found.symbol : curr + ' ';
+  };
 
   const analyzeImage = async () => {
     if (!imageUri) return;
@@ -41,9 +85,8 @@ export default function Analysis() {
       setLoading(true);
       setError(null);
       
-      // Read file as base64
       const base64 = await readAsStringAsync(imageUri as string, {
-        encoding: "base64", // Using string literal "base64" as required
+        encoding: "base64",
       });
 
       const data = await ocr(base64);
@@ -68,21 +111,44 @@ export default function Analysis() {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.row} key={item.name}>
-      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.name}</Text>
-      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.quantity.toString()}</Text>
-      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.unit_price.toFixed(2)}</Text>
-      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.total_price.toFixed(2)}</Text>
-    </View>
-  );
+  const renderItem = ({ item }: { item: any }) => {
+    const originalTotal = item.total_price;
+    const convertedTotal = convertPrice(originalTotal);
+    const isConverted = result?.summary?.currency !== targetCurrency && exchangeRates;
 
-  const renderTaxItem = ({ item }: { item: any }) => (
-    <View style={styles.row} key={item.name}>
-      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.name}</Text>
-      <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.amount.toFixed(2)}</Text>
-    </View>
-  );
+    return (
+      <View style={styles.row} key={item.name}>
+        <View style={{ flex: 2 }}>
+          <Text style={[styles.cell, { color: theme.textSecondary }]}>{item.name}</Text>
+        </View>
+        <Text style={[styles.cell, { color: theme.textSecondary, textAlign: 'center' }]}>{item.quantity.toString()}</Text>
+        <View style={[styles.cell, { alignItems: 'flex-end' }]}>
+            <Text style={{ color: theme.textSecondary, textAlign: 'right' }}>
+              {formatPrice(convertPrice(item.unit_price), isConverted ? targetCurrency : result?.summary?.currency || '')}
+            </Text>
+        </View>
+        <View style={[styles.cell, { alignItems: 'flex-end' }]}>
+            <Text style={{ color: theme.textSecondary, fontWeight: '600', textAlign: 'right' }}>
+              {formatPrice(convertedTotal, isConverted ? targetCurrency : result?.summary?.currency || '')}
+            </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderTaxItem = ({ item }: { item: any }) => {
+    const isConverted = result?.summary?.currency !== targetCurrency && exchangeRates;
+    return (
+      <View style={styles.row} key={item.name}>
+        <Text style={[styles.cell, { color: theme.textSecondary, flex: 2 }]}>{item.name}</Text>
+        <View style={[styles.cell, { alignItems: 'flex-end' }]}>
+          <Text style={{ color: theme.textSecondary, textAlign: 'right' }}>
+            {formatPrice(convertPrice(item.amount), isConverted ? targetCurrency : result?.summary?.currency || '')}
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -136,6 +202,30 @@ export default function Analysis() {
             <Text style={[styles.description, { color: theme.textSecondary }]}>
               {result.description}
             </Text>
+
+            <View style={styles.currencyInfoContainer}>
+              <View style={styles.currencyBadge}>
+                 <Text style={[styles.currencyLabel, { color: theme.textSecondary }]}>Detected:</Text>
+                 <Text style={[styles.currencyValue, { color: theme.text }]}>{result.summary.currency || 'N/A'}</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={[styles.currencySelectButton, { backgroundColor: theme.cardBackground, borderColor: theme.accent }]}
+                onPress={() => setShowCurrencyModal(true)}
+              >
+                 <Text style={[styles.currencyLabel, { color: theme.textSecondary }]}>Convert to:</Text>
+                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                   <Text style={[styles.currencyValue, { color: theme.accent }]}>{targetCurrency}</Text>
+                   <Ionicons name="chevron-down" size={14} color={theme.accent} />
+                 </View>
+              </TouchableOpacity>
+            </View>
+
+            {rateData && result.summary.currency !== targetCurrency && (
+              <Text style={[styles.rateInfo, { color: theme.textSecondary }]}>
+                1 {result.summary.currency} ≈ {exchangeRates?.[targetCurrency]?.toFixed(4)} {targetCurrency}
+              </Text>
+            )}
             
             <View style={styles.categoryContainer}>
               <View style={[styles.categoryIcon, { backgroundColor: theme.featureIconBg }]}>
@@ -151,10 +241,10 @@ export default function Analysis() {
 
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Items</Text>
             <View style={[styles.tableHeader, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.columnHeader, { color: theme.text }]}>Item</Text>
-              <Text style={[styles.columnHeader, { color: theme.text }]}>Qty</Text>
-              <Text style={[styles.columnHeader, { color: theme.text }]}>Price</Text>
-              <Text style={[styles.columnHeader, { color: theme.text }]}>Total</Text>
+              <Text style={[styles.columnHeader, { color: theme.text, flex: 2 }]}>Item</Text>
+              <Text style={[styles.columnHeader, { color: theme.text, textAlign: 'center' }]}>Qty</Text>
+              <Text style={[styles.columnHeader, { color: theme.text, textAlign: 'right' }]}>Price</Text>
+              <Text style={[styles.columnHeader, { color: theme.text, textAlign: 'right' }]}>Total</Text>
             </View>
             
             {result.items.map((item: any) => renderItem({ item }))}
@@ -163,21 +253,63 @@ export default function Analysis() {
 
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Taxes</Text>
             <View style={[styles.tableHeader, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.columnHeader, { color: theme.text }]}>Tax Name</Text>
-              <Text style={[styles.columnHeader, { color: theme.text }]}>Amount</Text>
+              <Text style={[styles.columnHeader, { color: theme.text, flex: 2 }]}>Tax Name</Text>
+              <Text style={[styles.columnHeader, { color: theme.text, textAlign: 'right' }]}>Amount</Text>
             </View>
             
             {result.summary.tax.map((item: any) => renderTaxItem({ item }))}
 
             <View style={[styles.totalRow, { borderTopColor: theme.border }]}>
-              <Text style={[styles.totalLabel, { color: theme.text }]}>Total Amount</Text>
+              <Text style={[styles.totalLabel, { color: theme.text }]}>Total ({targetCurrency})</Text>
               <Text style={[styles.totalAmount, { color: theme.accent }]}>
-                ₹{result.summary.totalAmount.toFixed(2)}
+                {formatPrice(convertPrice(result.summary.totalAmount), targetCurrency)}
               </Text>
             </View>
           </View>
         ) : null}
       </ScrollView>
+
+      <Modal
+        visible={showCurrencyModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCurrencyModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowCurrencyModal(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
+             <Text style={[styles.modalTitle, { color: theme.text }]}>Convert to</Text>
+              <FlatList
+                data={CURRENCIES}
+                keyExtractor={item => item.code}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.currencyItem,
+                      { backgroundColor: item.code === targetCurrency ? theme.accent + '20' : 'transparent' }
+                    ]}
+                    onPress={() => {
+                      setTargetCurrency(item.code);
+                      setShowCurrencyModal(false);
+                    }}
+                  >
+                    <View>
+                        <Text style={[
+                        styles.currencyText,
+                        { color: item.code === targetCurrency ? theme.accent : theme.text }
+                        ]}>{item.code} - {item.symbol}</Text>
+                        <Text style={[styles.currencyName, { color: theme.textSecondary }]}>{item.name}</Text>
+                    </View>
+                    {item.code === targetCurrency && <Ionicons name="checkmark" size={16} color={theme.accent} />}
+                  </TouchableOpacity>
+                )}
+             />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -320,7 +452,76 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   totalAmount: {
-    fontSize: 24,
     fontWeight: "800",
+  },
+  currencyInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: '#00000008',
+    padding: 12,
+    borderRadius: 12,
+  },
+  currencyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  currencySelectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  currencyLabel: {
+    fontSize: 12,
+  },
+  currencyValue: {
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  rateInfo: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 20,
+    marginLeft: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    borderRadius: 20,
+    padding: 20,
+    maxHeight: '60%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  currencyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  currencyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  currencyName: {
+    fontSize: 12,
   },
 });

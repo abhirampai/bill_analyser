@@ -39,7 +39,8 @@ Use this JSON schema:
             }
           }
         },
-        "totalAmount": { "type": "number" }
+      "totalAmount": { "type": "number" },
+        "currency": { "type": "string", "description": "ISO 4217 currency code e.g. USD, INR, EUR" }
       }
     },
   },

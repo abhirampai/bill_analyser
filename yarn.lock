@@ -1623,6 +1623,13 @@
   resolved "https://registry.yarnpkg.com/@radix-ui/react-use-layout-effect/-/react-use-layout-effect-1.1.1.tgz#0c4230a9eed49d4589c967e2d9c0d9d60a23971e"
   integrity sha512-RbJRS4UWQFkzHTTwVymMTUv8EqYhOp8dOOviLj2ugtTiXRaRQS7GLGxZTLL1jWhMeoSCf5zmcZkqTl9IiYfXcQ==
 
+"@react-native-async-storage/async-storage@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@react-native-async-storage/async-storage/-/async-storage-2.2.0.tgz#a3aa565253e46286655560172f4e366e8969f5ad"
+  integrity sha512-gvRvjR5JAaUZF8tv2Kcq/Gbt3JHwbKFYfmb445rhOj6NUMx3qPLixmDx5pZAyb9at1bYvJ4/eTUipU5aki45xw==
+  dependencies:
+    merge-options "^3.0.4"
+
 "@react-native/assets-registry@0.81.5":
   version "0.81.5"
   resolved "https://registry.yarnpkg.com/@react-native/assets-registry/-/assets-registry-0.81.5.tgz#d22c924fa6f6d4a463c5af34ce91f38756c0fa7d"
@@ -3569,6 +3576,13 @@ expo-linking@~8.0.10:
     expo-constants "~18.0.11"
     invariant "^2.2.4"
 
+expo-localization@^17.0.8:
+  version "17.0.8"
+  resolved "https://registry.yarnpkg.com/expo-localization/-/expo-localization-17.0.8.tgz#eb74ae0f9b5b49596322d68d2005662346211100"
+  integrity sha512-UrdwklZBDJ+t+ZszMMiE0SXZ2eJxcquCuQcl6EvGHM9K+e6YqKVRQ+w8qE+iIB3H75v2RJy6MHAaLK+Mqeo04g==
+  dependencies:
+    rtl-detect "^1.0.2"
+
 expo-modules-autolinking@3.0.23:
   version "3.0.23"
   resolved "https://registry.yarnpkg.com/expo-modules-autolinking/-/expo-modules-autolinking-3.0.23.tgz#1b4349476d4c75b4f2dcefe716ff28c6746aa6ed"
@@ -4378,6 +4392,11 @@ is-number@^7.0.0:
   version "7.0.0"
   resolved "https://registry.yarnpkg.com/is-number/-/is-number-7.0.0.tgz#7535345b896734d5f80c4d06c50955527a14f12b"
   integrity sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==
+
+is-plain-obj@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/is-plain-obj/-/is-plain-obj-2.1.0.tgz#45e42e37fccf1f40da8e5f76ee21515840c09287"
+  integrity sha512-YWnfyRwxL/+SsrWYfOpUtz5b3YD+nyfkHvjbcanzk8zgyO4ASD67uVMRt8k5bM4lLMDnXfriRhOpemw+NfT1eA==
 
 is-potential-custom-element-name@^1.0.1:
   version "1.0.1"
@@ -5268,6 +5287,13 @@ memoize-one@^6.0.0:
   version "6.0.0"
   resolved "https://registry.yarnpkg.com/memoize-one/-/memoize-one-6.0.0.tgz#b2591b871ed82948aee4727dc6abceeeac8c1045"
   integrity sha512-rkpe71W0N0c0Xz6QD0eJETuWAJGnJ9afsl1srmwPrI+yBCkge5EycXXbYRyvL29zZVUWQCY7InPRCv3GDXuZNw==
+
+merge-options@^3.0.4:
+  version "3.0.4"
+  resolved "https://registry.yarnpkg.com/merge-options/-/merge-options-3.0.4.tgz#84709c2aa2a4b24c1981f66c179fe5565cc6dbb7"
+  integrity sha512-2Sug1+knBjkaMsMgf1ctR1Ujx+Ayku4EdJN4Z+C2+JzoeF7A3OZ9KM2GY0CpQS51NR61LTurMJrRKPhSs3ZRTQ==
+  dependencies:
+    is-plain-obj "^2.1.0"
 
 merge-stream@^2.0.0:
   version "2.0.0"
@@ -6678,6 +6704,11 @@ rimraf@^3.0.2:
   integrity sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==
   dependencies:
     glob "^7.1.3"
+
+rtl-detect@^1.0.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/rtl-detect/-/rtl-detect-1.1.2.tgz#ca7f0330af5c6bb626c15675c642ba85ad6273c6"
+  integrity sha512-PGMBq03+TTG/p/cRB7HCLKJ1MgDIi07+QU1faSjiYRfmY5UsAttV9Hs08jDAHVwcOwmVLcSJkpwyfXszVjWfIQ==
 
 safe-array-concat@^1.1.3:
   version "1.1.3"

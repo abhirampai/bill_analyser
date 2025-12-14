@@ -1,9 +1,14 @@
+import { useState, useEffect } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, StatusBar, useColorScheme } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocales } from 'expo-localization';
+import { Modal, FlatList } from "react-native";
+import { CURRENCIES } from "./constants/currencies";
 
 import Colors from "./theme/colors";
 
@@ -13,17 +18,42 @@ export default function Index() {
   const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
   const isDark = colorScheme === "dark";
 
+  const [currency, setCurrency] = useState<string>(getLocales()[0]?.currencyCode || 'USD');
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    loadCurrency();
+  }, []);
+
+  const loadCurrency = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('userCurrency');
+      if (stored) setCurrency(stored);
+    } catch (e) {
+      console.log('Failed to load currency');
+    }
+  };
+
+  const saveCurrency = async (curr: string) => {
+    try {
+      await AsyncStorage.setItem('userCurrency', curr);
+      setCurrency(curr);
+      setShowSettings(false);
+    } catch (e) {
+      console.log('Failed to save currency');
+    }
+  };
+
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],
-      base64: true, // We still need this if we were passing it, but strictly we can rely on URI read in next screen. 
-                     // However, leaving it true costs nothing and allows future flexibility.
+      base64: true, 
       quality: 1,
     });
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      router.push({ pathname: '/analysis', params: { imageUri: uri } });
+      router.push({ pathname: '/analysis', params: { imageUri: uri, userCurrency: currency } });
     }
   };
 
@@ -83,6 +113,14 @@ export default function Index() {
           <Text style={[styles.tagline, { color: theme.textSecondary }]}>
             AI-Powered Expense Insights
           </Text>
+          
+          <TouchableOpacity 
+            style={[styles.settingsButton, { backgroundColor: theme.cardBackground }]}
+            onPress={() => setShowSettings(true)}
+          >
+            <Ionicons name="settings-outline" size={20} color={theme.text} />
+            <Text style={[styles.currencyBadge, { color: theme.text }]}>{currency}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Hero / Action Section */}
@@ -150,6 +188,56 @@ export default function Index() {
         </View>
       </ScrollView>
 
+
+
+
+      <Modal
+        visible={showSettings}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Select Currency</Text>
+              <TouchableOpacity onPress={() => setShowSettings(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={CURRENCIES}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.currencyItem,
+                    { 
+                      backgroundColor: item.code === currency ? theme.accent + '20' : 'transparent',
+                      borderColor: theme.border
+                    }
+                  ]}
+                  onPress={() => saveCurrency(item.code)}
+                >
+                  <View>
+                    <Text style={[
+                      styles.currencyText, 
+                      { 
+                        color: item.code === currency ? theme.accent : theme.text,
+                        fontWeight: item.code === currency ? '700' : '600'
+                      }
+                    ]}>{item.code} - {item.symbol}</Text>
+                    <Text style={[styles.currencyName, { color: theme.textSecondary }]}>{item.name}</Text>
+                  </View>
+                  {item.code === currency && (
+                    <Ionicons name="checkmark" size={20} color={theme.accent} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );
@@ -292,4 +380,58 @@ const styles = StyleSheet.create({
   featureDesc: {
     fontSize: 13,
   },
+  settingsButton: {
+    position: 'absolute',
+    right: 0,
+    top: 10, // Aligned with logo
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  currencyBadge: {
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 40,
+    maxHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  currencyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc2',
+    borderRadius: 8,
+  },
+  currencyText: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  currencyName: {
+    fontSize: 12,
+  },
 });
+
