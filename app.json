@@ -38,7 +38,9 @@
         {
           "photosPermission": "The app accesses your photos for text recognition."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
