@@ -50,7 +50,7 @@ Use this JSON schema:
 const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
 
 const model = genAI.getGenerativeModel({
-  model: "models/gemini-2.0-flash",
+  model: "models/gemini-2.5-flash",
   generationConfig: {
     responseMimeType: "application/json",
   },
