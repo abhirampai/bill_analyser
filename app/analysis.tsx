@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { readAsStringAsync } from "expo-file-system/legacy";
 
 import * as Clipboard from "expo-clipboard";
-import { Modal, FlatList } from "react-native";
+import { Modal, FlatList, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import Colors from "./theme/colors";
 import { ocr } from "./gemini/gemini";
 import { getExchangeRates } from "./services/exchangeRate";
@@ -38,6 +38,12 @@ export default function Analysis() {
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
   const [rateData, setRateData] = useState<any>(null);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredCurrencies = CURRENCIES.filter(c => 
+    c.code.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     analyzeImage();
@@ -275,15 +281,37 @@ export default function Analysis() {
         animationType="fade"
         onRequestClose={() => setShowCurrencyModal(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setShowCurrencyModal(false)}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
         >
+          <TouchableOpacity 
+            style={StyleSheet.absoluteFill} 
+            activeOpacity={1} 
+            onPress={() => setShowCurrencyModal(false)}
+          />
           <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
              <Text style={[styles.modalTitle, { color: theme.text }]}>Convert to</Text>
+             
+            <View style={[styles.searchContainer, { backgroundColor: theme.searchBg, borderColor: theme.border }]}>
+               <Ionicons name="search" size={20} color={theme.textSecondary} />
+               <TextInput
+                 style={[styles.searchInput, { color: theme.text }]}
+                 placeholder="Search currency..."
+                 placeholderTextColor={theme.textSecondary}
+                 value={searchQuery}
+                 onChangeText={setSearchQuery}
+                 autoCorrect={false}
+               />
+               {searchQuery.length > 0 && (
+                 <TouchableOpacity onPress={() => setSearchQuery("")}>
+                   <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+                 </TouchableOpacity>
+               )}
+            </View>
+
               <FlatList
-                data={CURRENCIES}
+                data={filteredCurrencies}
                 keyExtractor={item => item.code}
                 renderItem={({ item }) => (
                   <TouchableOpacity
@@ -308,7 +336,7 @@ export default function Analysis() {
                 )}
              />
           </View>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -523,5 +551,20 @@ const styles = StyleSheet.create({
   },
   currencyName: {
     fontSize: 12,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
   },
 });
