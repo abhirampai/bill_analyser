@@ -10,7 +10,9 @@ import { getLocales } from 'expo-localization';
 import { Modal, FlatList } from "react-native";
 import { CURRENCIES } from "./constants/currencies";
 
+
 import Colors from "./theme/colors";
+import { TextInput, KeyboardAvoidingView, Platform } from "react-native";
 
 export default function Index() {
   const router = useRouter();
@@ -20,6 +22,12 @@ export default function Index() {
 
   const [currency, setCurrency] = useState<string>(getLocales()[0]?.currencyCode || 'USD');
   const [showSettings, setShowSettings] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredCurrencies = CURRENCIES.filter(c => 
+    c.code.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     loadCurrency();
@@ -197,7 +205,15 @@ export default function Index() {
         animationType="slide"
         onRequestClose={() => setShowSettings(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity 
+            style={StyleSheet.absoluteFill} 
+            activeOpacity={1} 
+            onPress={() => setShowSettings(false)}
+          />
           <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>Select Currency</Text>
@@ -205,8 +221,26 @@ export default function Index() {
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
+            
+            <View style={[styles.searchContainer, { backgroundColor: theme.searchBg, borderColor: theme.border }]}>
+              <Ionicons name="search" size={20} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.searchInput, { color: theme.text }]}
+                placeholder="Search currency..."
+                placeholderTextColor={theme.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+
             <FlatList
-              data={CURRENCIES}
+              data={filteredCurrencies}
               keyExtractor={(item) => item.code}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -236,7 +270,7 @@ export default function Index() {
               )}
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
     </SafeAreaView>
@@ -432,6 +466,21 @@ const styles = StyleSheet.create({
   },
   currencyName: {
     fontSize: 12,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
   },
 });
 
