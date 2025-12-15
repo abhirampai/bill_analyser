@@ -122,13 +122,22 @@ export default function Index() {
             AI-Powered Expense Insights
           </Text>
           
-          <TouchableOpacity 
-            style={[styles.settingsButton, { backgroundColor: theme.cardBackground }]}
-            onPress={() => setShowSettings(true)}
-          >
-            <Ionicons name="settings-outline" size={20} color={theme.text} />
-            <Text style={[styles.currencyBadge, { color: theme.text }]}>{currency}</Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity 
+              style={[styles.iconButton, { backgroundColor: theme.cardBackground }]}
+              onPress={() => router.push({ pathname: '/history' as any, params: { currency } })}
+            >
+              <Ionicons name="time-outline" size={20} color={theme.text} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.settingsButton, { backgroundColor: theme.cardBackground }]}
+              onPress={() => setShowSettings(true)}
+            >
+              <Ionicons name="settings-outline" size={20} color={theme.text} />
+              <Text style={[styles.currencyBadge, { color: theme.text }]}>{currency}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Hero / Action Section */}
@@ -222,7 +231,7 @@ export default function Index() {
               </TouchableOpacity>
             </View>
             
-            <View style={[styles.searchContainer, { backgroundColor: theme.searchBg, borderColor: theme.border }]}>
+            <View style={[styles.searchContainer, { backgroundColor: (theme as any).searchBg || theme.cardBackground, borderColor: theme.border }]}>
               <Ionicons name="search" size={20} color={theme.textSecondary} />
               <TextInput
                 style={[styles.searchInput, { color: theme.text }]}
@@ -414,10 +423,21 @@ const styles = StyleSheet.create({
   featureDesc: {
     fontSize: 13,
   },
-  settingsButton: {
+  headerButtons: {
     position: 'absolute',
     right: 0,
-    top: 10, // Aligned with logo
+    top: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 8,
