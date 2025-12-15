@@ -29,13 +29,14 @@ export const StorageService = {
     }
   },
 
-  async saveBill(analysisResult: any): Promise<{ success: boolean; warning?: boolean }> {
+  async saveBill(analysisResult: any): Promise<{ success: boolean; warning?: boolean; id?: string }> {
     try {
       const bills = await this.getBills();
       
       // Create new bill object
+      const id = Date.now().toString();
       const newBill: SavedBill = {
-        id: Date.now().toString(), // Simple ID generation
+        id, 
         date: new Date().toISOString(),
         summary: {
           totalAmount: analysisResult.summary.totalAmount,
@@ -66,7 +67,7 @@ export const StorageService = {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(bills));
       
       // Return the ID of the saved bill so we can reference it if needed
-      return { success: true, warning };
+      return { success: true, warning, id };
     } catch (e) {
       console.error('Failed to save bill', e);
       return { success: false };
@@ -81,6 +82,23 @@ export const StorageService = {
       return true;
     } catch (e) {
       console.error('Failed to delete bill', e);
+      return false;
+    }
+  },
+
+  async updateBill(updatedBill: SavedBill): Promise<boolean> {
+    try {
+      const bills = await this.getBills();
+      const index = bills.findIndex(b => b.id === updatedBill.id);
+      
+      if (index !== -1) {
+        bills[index] = updatedBill;
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(bills));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Failed to update bill', e);
       return false;
     }
   },
