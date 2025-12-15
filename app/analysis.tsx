@@ -21,11 +21,12 @@ import Colors from "./theme/colors";
 import { ocr } from "./gemini/gemini";
 import { getExchangeRates } from "./services/exchangeRate";
 import { CURRENCIES } from "./constants/currencies";
+import { StorageService } from "./services/storage";
 
 export default function Analysis() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { imageUri, userCurrency } = params;
+  const { imageUri, userCurrency, billId } = params;
   
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
@@ -47,7 +48,7 @@ export default function Analysis() {
 
   useEffect(() => {
     analyzeImage();
-  }, [imageUri]);
+  }, [imageUri, billId]);
 
   useEffect(() => {
     if (result?.summary?.currency && result.summary.currency !== targetCurrency) {
@@ -85,6 +86,12 @@ export default function Analysis() {
   };
 
   const analyzeImage = async () => {
+    // If we have a billId, we load from storage, skip analysis
+    if (billId) {
+      loadFromHistory();
+      return;
+    }
+
     if (!imageUri) return;
 
     try {
@@ -101,12 +108,43 @@ export default function Analysis() {
         setError(data.error);
       } else {
         setResult(data);
+        // Auto-save on successful analysis
+        saveToHistory(data);
       }
     } catch (err) {
       console.error(err);
       setError("Failed to analyze bill. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFromHistory = async () => {
+    try {
+        setLoading(true);
+        // In a real app with many items, we might want a getBill(id) method
+        // For 20 items, filtering client-side is fine or using our getBills
+        const bills = await StorageService.getBills();
+        const found = bills.find(b => b.id === billId);
+        if (found) {
+            setResult(found.fullData);
+        } else {
+            setError("Bill not found in history.");
+        }
+    } catch (e) {
+        setError("Failed to load bill.");
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const saveToHistory = async (data: any) => {
+    const { success, warning } = await StorageService.saveBill(data);
+    if (success && warning) {
+        Alert.alert(
+            "Storage Warning",
+            "You have reached 10 saved bills. Older bills will be automatically removed as you add new ones."
+        );
     }
   };
 
@@ -293,7 +331,7 @@ export default function Analysis() {
           <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
              <Text style={[styles.modalTitle, { color: theme.text }]}>Convert to</Text>
              
-            <View style={[styles.searchContainer, { backgroundColor: theme.searchBg, borderColor: theme.border }]}>
+            <View style={[styles.searchContainer, { backgroundColor: (theme as any).searchBg || theme.cardBackground, borderColor: theme.border }]}>
                <Ionicons name="search" size={20} color={theme.textSecondary} />
                <TextInput
                  style={[styles.searchInput, { color: theme.text }]}
