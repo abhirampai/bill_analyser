@@ -21,6 +21,7 @@ export default function History() {
   const params = useLocalSearchParams();
   const currency = params.currency;
   
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [bills, setBills] = useState<SavedBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,8 +44,16 @@ export default function History() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    // Reset category on refresh if desired, or keep it. Keeping it allows users to refresh current view.
     loadBills();
   }, []);
+
+  const categories = ["All", ...Array.from(new Set(bills.map((b) => b.category.name)))];
+
+  const filteredBills =
+    selectedCategory === "All"
+      ? bills
+      : bills.filter((b) => b.category.name === selectedCategory);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -90,6 +99,31 @@ export default function History() {
     </TouchableOpacity>
   );
 
+  const renderCategory = ({ item }: { item: string }) => {
+    const isSelected = item === selectedCategory;
+    return (
+      <TouchableOpacity
+        onPress={() => setSelectedCategory(item)}
+        style={[
+          styles.categoryChip,
+          {
+            backgroundColor: isSelected ? theme.accent : theme.cardBackground,
+            borderColor: isSelected ? theme.accent : theme.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.categoryText,
+            { color: isSelected ? "#FFF" : theme.textSecondary },
+          ]}
+        >
+          {item}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
@@ -100,11 +134,24 @@ export default function History() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>History</Text>
-        <View style={{ width: 40 }} /> 
+        <TouchableOpacity 
+          style={[styles.backButton, { backgroundColor: 'transparent' }]}
+        /> 
+      </View>
+
+      <View style={styles.categoriesContainer}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={categories}
+          renderItem={renderCategory}
+          keyExtractor={(item) => item}
+          contentContainerStyle={styles.categoriesContent}
+        />
       </View>
 
       <FlatList
-        data={bills}
+        data={filteredBills}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
@@ -145,6 +192,24 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
+  },
+  categoriesContainer: {
+    marginBottom: 10,
+  },
+  categoriesContent: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   listContent: {
     padding: 20,
