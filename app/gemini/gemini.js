@@ -58,17 +58,33 @@ const model = genAI.getGenerativeModel({
 });
 
 export const ocr = async (base64Image, mimeType = "image/jpeg") => {
-  const result = await model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        data: base64Image,
-        mimeType: mimeType,
+  try {
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: mimeType,
+        },
       },
-    },
-  ]);
+    ]);
 
-  return JSON.parse(result.response.text());
+    return JSON.parse(result.response.text());
+  } catch (error) {
+    if (
+        error.message?.includes('429') || 
+        error.message?.includes('Resource has been exhausted') ||
+        error.status === 429
+    ) {
+        return { 
+            error: "RATE_LIMIT_EXCEEDED", 
+            message: "We've hit the usage limit for the AI service. Please try again later." 
+        };
+    }
+    
+    console.error("Gemini Error:", error);
+    return { error: "FAILED_TO_ANALYZE", message: "Failed to analyze bill. Please try again." };
+  }
 };
 
 export default { ocr };

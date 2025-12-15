@@ -22,6 +22,7 @@ import { ocr } from "./gemini/gemini";
 import { getExchangeRates } from "./services/exchangeRate";
 import { CURRENCIES } from "./constants/currencies";
 import { StorageService } from "./services/storage";
+import AnalysisLoading from "../components/AnalysisLoading";
 
 export default function Analysis() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function Analysis() {
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rateLimited, setRateLimited] = useState(false);
 
   const [targetCurrency, setTargetCurrency] = useState<string>(userCurrency as string || 'USD');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
@@ -104,6 +106,7 @@ export default function Analysis() {
     try {
       setLoading(true);
       setError(null);
+      setRateLimited(false);
       
       const base64 = await readAsStringAsync(imageUri as string, {
         encoding: "base64",
@@ -112,7 +115,12 @@ export default function Analysis() {
       const data = await ocr(base64);
       
       if (data.error) {
-        setError(data.error);
+        if (data.error === "RATE_LIMIT_EXCEEDED") {
+            setRateLimited(true);
+            setError(data.message);
+        } else {
+            setError(data.error);
+        }
       } else {
         // Initialize originalCurrency if not present
         if (!data.summary.originalCurrency) {
@@ -388,7 +396,7 @@ export default function Analysis() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {imageUri && (
+        {imageUri && !loading && (
           <Image 
             source={{ uri: imageUri as string }} 
             style={[styles.previewImage, { borderColor: theme.border }]} 
@@ -397,22 +405,19 @@ export default function Analysis() {
         )}
 
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.accent} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-              Analyzing receipt details...
-            </Text>
-          </View>
+          <AnalysisLoading imageUri={imageUri as string} />
         ) : error ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={48} color="#FF6B6B" />
             <Text style={[styles.errorText, { color: theme.text }]}>{error}</Text>
-            <TouchableOpacity 
-              style={[styles.retryButton, { backgroundColor: theme.accent }]}
-              onPress={analyzeImage}
-            >
-              <Text style={styles.retryButtonText}>Retry Analysis</Text>
-            </TouchableOpacity>
+            {!rateLimited && (
+                <TouchableOpacity 
+                style={[styles.retryButton, { backgroundColor: theme.accent }]}
+                onPress={analyzeImage}
+                >
+                <Text style={styles.retryButtonText}>Retry Analysis</Text>
+                </TouchableOpacity>
+            )}
           </View>
         ) : result ? (
           <View style={[styles.resultCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
