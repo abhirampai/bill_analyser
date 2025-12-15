@@ -371,17 +371,19 @@ export default function Analysis() {
                   <Ionicons name="copy-outline" size={24} color={theme.text} />
                 </TouchableOpacity>
             )}
-            <TouchableOpacity 
-              onPress={isEditing ? handleSave : () => setIsEditing(true)}
-              disabled={!result}
-              style={[styles.backButton, { backgroundColor: isEditing ? theme.accent : 'transparent' }]}
-            >
-              <Ionicons 
-                name={isEditing ? "save" : "create-outline"} 
-                size={24} 
-                color={isEditing ? "#fff" : theme.text} 
-              />
-            </TouchableOpacity>
+            {!loading && (
+              <TouchableOpacity 
+                onPress={isEditing ? handleSave : () => setIsEditing(true)}
+                disabled={!result}
+                style={[styles.backButton, { backgroundColor: isEditing ? theme.accent : 'transparent' }]}
+              >
+                <Ionicons 
+                  name={isEditing ? "save" : "create-outline"} 
+                  size={24} 
+                  color={isEditing ? "#fff" : theme.text} 
+                />
+              </TouchableOpacity>
+            )}
         </View>
       </View>
 
