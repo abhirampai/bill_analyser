@@ -27,6 +27,7 @@ export default function Analysis() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { imageUri, userCurrency, billId } = params;
+  const [activeBillId, setActiveBillId] = useState<string | null>(billId as string || null);
   
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
@@ -39,7 +40,13 @@ export default function Analysis() {
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
   const [rateData, setRateData] = useState<any>(null);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [currencyModalMode, setCurrencyModalMode] = useState<'target' | 'base'>('target'); 
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null); 
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [itemModalType, setItemModalType] = useState<'item' | 'tax'>('item');
 
   const filteredCurrencies = CURRENCIES.filter(c => 
     c.code.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -48,7 +55,7 @@ export default function Analysis() {
 
   useEffect(() => {
     analyzeImage();
-  }, [imageUri, billId]);
+  }, [imageUri, activeBillId]);
 
   useEffect(() => {
     if (result?.summary?.currency && result.summary.currency !== targetCurrency) {
@@ -87,7 +94,7 @@ export default function Analysis() {
 
   const analyzeImage = async () => {
     // If we have a billId, we load from storage, skip analysis
-    if (billId) {
+    if (activeBillId) {
       loadFromHistory();
       return;
     }
@@ -107,6 +114,10 @@ export default function Analysis() {
       if (data.error) {
         setError(data.error);
       } else {
+        // Initialize originalCurrency if not present
+        if (!data.summary.originalCurrency) {
+            data.summary.originalCurrency = data.summary.currency;
+        }
         setResult(data);
         // Auto-save on successful analysis
         saveToHistory(data);
@@ -119,13 +130,116 @@ export default function Analysis() {
     }
   };
 
+  const calculateTotal = (currentResult: any) => {
+    if (!currentResult) return 0;
+    
+    // Sum items
+    const itemsTotal = currentResult.items.reduce((sum: number, item: any) => {
+        return sum + (item.total_price || 0);
+    }, 0);
+
+    // Sum taxes
+    const taxTotal = currentResult.summary.tax.reduce((sum: number, tax: any) => {
+        return sum + (tax.amount || 0);
+    }, 0);
+
+    return itemsTotal + taxTotal;
+  };
+
+  const handleUpdateItem = (updatedItem: any) => {
+    const newResult = { ...result };
+    
+    if (itemModalType === 'item') {
+        const qty = parseFloat(updatedItem.quantity) || 0;
+        const price = parseFloat(updatedItem.unit_price) || 0;
+
+        if (updatedItem.index !== undefined) {
+             // Update existing
+             newResult.items[updatedItem.index] = {
+                 ...updatedItem,
+                 quantity: qty,
+                 unit_price: price,
+                 total_price: qty * price
+             };
+        } else {
+             // Add new
+             newResult.items.push({
+                 ...updatedItem,
+                 quantity: qty,
+                 unit_price: price,
+                 total_price: qty * price
+             });
+        }
+    } else {
+        const amount = parseFloat(updatedItem.amount) || 0;
+        
+        if (updatedItem.index !== undefined) {
+            // Update existing tax
+            newResult.summary.tax[updatedItem.index] = {
+                ...updatedItem,
+                amount: amount
+            };
+        } else {
+            // Add new tax
+            newResult.summary.tax.push({
+                ...updatedItem,
+                amount: amount
+            });
+        }
+    }
+
+    // Recalculate total
+    newResult.summary.totalAmount = calculateTotal(newResult);
+    setResult(newResult);
+    setShowItemModal(false);
+    setEditingItem(null);
+  };
+
+  const deleteItem = (index: number, type: 'item' | 'tax') => {
+      const newResult = { ...result };
+      if (type === 'item') {
+          newResult.items.splice(index, 1);
+      } else {
+          newResult.summary.tax.splice(index, 1);
+      }
+      newResult.summary.totalAmount = calculateTotal(newResult);
+      setResult(newResult);
+  };
+
+  const handleSave = async () => {
+      setIsEditing(false);
+      
+      // If we are editing an existing history item
+      if (activeBillId) {
+          const success = await StorageService.updateBill({
+              id: activeBillId,
+              date: result.date || new Date().toISOString(), // Preserve date or use updated? Usually preserve.
+              summary: {
+                  totalAmount: result.summary.totalAmount,
+                  currency: result.summary.currency,
+              },
+              category: result.category,
+              fullData: result,
+          } as any); // Casting since SavedBill interface might need slight adjustment regarding 'date' location in fullData vs root
+          
+          if (success) {
+            Alert.alert("Success", "Bill updated successfully");
+          } else {
+            Alert.alert("Error", "Failed to update bill");
+          }
+      } else {
+          // Fallback if no ID (shouldn't happen with updated logic)
+          await saveToHistory(result);
+      }
+  };
+
   const loadFromHistory = async () => {
     try {
         setLoading(true);
         // In a real app with many items, we might want a getBill(id) method
         // For 20 items, filtering client-side is fine or using our getBills
         const bills = await StorageService.getBills();
-        const found = bills.find(b => b.id === billId);
+        const found = bills.find(b => b.id === activeBillId);
         if (found) {
             setResult(found.fullData);
         } else {
@@ -138,13 +252,25 @@ export default function Analysis() {
     }
   };
 
-  const saveToHistory = async (data: any) => {
-    const { success, warning } = await StorageService.saveBill(data);
-    if (success && warning) {
-        Alert.alert(
-            "Storage Warning",
-            "You have reached 10 saved bills. Older bills will be automatically removed as you add new ones."
-        );
+  const saveToHistory = async (data: any, isUpdate = false) => {
+    // If we have a billId, use update
+    if (activeBillId) {
+        // This is handled by handleSave mostly, but if we call this manually
+        // we might want to ensure we don't create dupes.
+        // For now, saveToHistory is mainly for the initial auto-save.
+    }
+    
+    // For initial auto-save
+    const { success, warning, id } = await StorageService.saveBill(data);
+    if (success) {
+        if (id) setActiveBillId(id); // Capture the new ID
+        
+        if (warning) {
+            Alert.alert(
+                "Storage Warning",
+                "You have reached 10 saved bills. Older bills will be automatically removed as you add new ones."
+            );
+        }
     }
   };
 
@@ -176,6 +302,21 @@ export default function Analysis() {
               {formatPrice(convertedTotal, isConverted ? targetCurrency : result?.summary?.currency || '')}
             </Text>
         </View>
+        
+        {isEditing && (
+            <View style={styles.editActions}>
+                <TouchableOpacity onPress={() => {
+                    setItemModalType('item');
+                    setEditingItem({ ...item, index: result.items.indexOf(item) });
+                    setShowItemModal(true);
+                }}>
+                    <Ionicons name="pencil" size={18} color={theme.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteItem(result.items.indexOf(item), 'item')}>
+                    <Ionicons name="trash" size={18} color="#FF6B6B" />
+                </TouchableOpacity>
+            </View>
+        )}
       </View>
     );
   };
@@ -190,6 +331,20 @@ export default function Analysis() {
             {formatPrice(convertPrice(item.amount), isConverted ? targetCurrency : result?.summary?.currency || '')}
           </Text>
         </View>
+        {isEditing && (
+            <View style={styles.editActions}>
+                <TouchableOpacity onPress={() => {
+                    setItemModalType('tax');
+                    setEditingItem({ ...item, index: result.summary.tax.indexOf(item) });
+                    setShowItemModal(true);
+                }}>
+                    <Ionicons name="pencil" size={18} color={theme.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteItem(result.summary.tax.indexOf(item), 'tax')}>
+                    <Ionicons name="trash" size={18} color="#FF6B6B" />
+                </TouchableOpacity>
+            </View>
+        )}
       </View>
     );
   };
@@ -203,14 +358,31 @@ export default function Analysis() {
         >
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Analysis Result</Text>
-        <TouchableOpacity 
-          onPress={copyToClipboard}
-          disabled={!result}
-          style={[styles.backButton, { opacity: result ? 1 : 0 }]}
-        >
-          <Ionicons name="copy-outline" size={24} color={theme.text} />
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+            {isEditing ? "Edit Bill" : "Analysis Result"}
+        </Text>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+            {!isEditing && (
+                <TouchableOpacity 
+                  onPress={copyToClipboard}
+                  disabled={!result}
+                  style={[styles.backButton, { opacity: result ? 1 : 0 }]}
+                >
+                  <Ionicons name="copy-outline" size={24} color={theme.text} />
+                </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              onPress={isEditing ? handleSave : () => setIsEditing(true)}
+              disabled={!result}
+              style={[styles.backButton, { backgroundColor: isEditing ? theme.accent : 'transparent' }]}
+            >
+              <Ionicons 
+                name={isEditing ? "save" : "create-outline"} 
+                size={24} 
+                color={isEditing ? "#fff" : theme.text} 
+              />
+            </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -250,12 +422,28 @@ export default function Analysis() {
             <View style={styles.currencyInfoContainer}>
               <View style={styles.currencyBadge}>
                  <Text style={[styles.currencyLabel, { color: theme.textSecondary }]}>Detected:</Text>
-                 <Text style={[styles.currencyValue, { color: theme.text }]}>{result.summary.currency || 'N/A'}</Text>
+                 {isEditing ? (
+                     <TouchableOpacity 
+                        onPress={() => {
+                            setCurrencyModalMode('base');
+                            setShowCurrencyModal(true);
+                        }}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: theme.border, padding: 4, borderRadius: 8 }}
+                     >
+                         <Text style={[styles.currencyValue, { color: theme.text }]}>{result.summary.currency || 'N/A'}</Text>
+                         <Ionicons name="pencil" size={12} color={theme.text} />
+                     </TouchableOpacity>
+                 ) : (
+                    <Text style={[styles.currencyValue, { color: theme.text }]}>{result.summary.currency || 'N/A'}</Text>
+                 )}
               </View>
               
               <TouchableOpacity 
                 style={[styles.currencySelectButton, { backgroundColor: theme.cardBackground, borderColor: theme.accent }]}
-                onPress={() => setShowCurrencyModal(true)}
+                onPress={() => {
+                    setCurrencyModalMode('target');
+                    setShowCurrencyModal(true);
+                }}
               >
                  <Text style={[styles.currencyLabel, { color: theme.textSecondary }]}>Convert to:</Text>
                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -283,8 +471,21 @@ export default function Analysis() {
 
             <View style={styles.divider} />
 
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Items</Text>
-            <View style={[styles.tableHeader, { borderBottomColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Items</Text>
+        {isEditing && (
+            <TouchableOpacity 
+                style={[styles.addButton, { backgroundColor: theme.accent }]}
+                onPress={() => {
+                    setItemModalType('item');
+                    setEditingItem({ name: '', quantity: 1, unit_price: 0 }); // Default new item
+                    setShowItemModal(true);
+                }}
+            >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.addButtonText}>Add Item</Text>
+            </TouchableOpacity>
+        )}
+        <View style={[styles.tableHeader, { borderBottomColor: theme.border }]}>
               <Text style={[styles.columnHeader, { color: theme.text, flex: 2 }]}>Item</Text>
               <Text style={[styles.columnHeader, { color: theme.text, textAlign: 'center' }]}>Qty</Text>
               <Text style={[styles.columnHeader, { color: theme.text, textAlign: 'right' }]}>Price</Text>
@@ -293,10 +494,23 @@ export default function Analysis() {
             
             {result.items.map((item: any) => renderItem({ item }))}
 
-            <View style={[styles.divider, { marginTop: 20 }]} />
+        <View style={[styles.divider, { marginTop: 20 }]} />
 
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Taxes</Text>
-            <View style={[styles.tableHeader, { borderBottomColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Taxes</Text>
+        {isEditing && (
+            <TouchableOpacity 
+                style={[styles.addButton, { backgroundColor: theme.accent }]}
+                onPress={() => {
+                    setItemModalType('tax');
+                    setEditingItem({ name: '', amount: 0 }); // Default new tax
+                    setShowItemModal(true);
+                }}
+            >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.addButtonText}>Add Tax</Text>
+            </TouchableOpacity>
+        )}
+        <View style={[styles.tableHeader, { borderBottomColor: theme.border }]}>
               <Text style={[styles.columnHeader, { color: theme.text, flex: 2 }]}>Tax Name</Text>
               <Text style={[styles.columnHeader, { color: theme.text, textAlign: 'right' }]}>Amount</Text>
             </View>
@@ -329,7 +543,9 @@ export default function Analysis() {
             onPress={() => setShowCurrencyModal(false)}
           />
           <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
-             <Text style={[styles.modalTitle, { color: theme.text }]}>Convert to</Text>
+             <Text style={[styles.modalTitle, { color: theme.text }]}>
+                 {currencyModalMode === 'target' ? "Convert to" : "Set Bill Currency"}
+             </Text>
              
             <View style={[styles.searchContainer, { backgroundColor: (theme as any).searchBg || theme.cardBackground, borderColor: theme.border }]}>
                <Ionicons name="search" size={20} color={theme.textSecondary} />
@@ -357,10 +573,17 @@ export default function Analysis() {
                       styles.currencyItem,
                       { backgroundColor: item.code === targetCurrency ? theme.accent + '20' : 'transparent' }
                     ]}
-                    onPress={() => {
-                      setTargetCurrency(item.code);
-                      setShowCurrencyModal(false);
-                    }}
+                     onPress={() => {
+                       if (currencyModalMode === 'target') {
+                           setTargetCurrency(item.code);
+                       } else {
+                           // Editing base currency
+                           const newResult = { ...result };
+                           newResult.summary.currency = item.code;
+                           setResult(newResult);
+                       }
+                       setShowCurrencyModal(false);
+                     }}
                   >
                     <View>
                         <Text style={[
@@ -373,6 +596,92 @@ export default function Analysis() {
                   </TouchableOpacity>
                 )}
              />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Edit Item/Tax Modal */}
+      <Modal
+        visible={showItemModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowItemModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+                {editingItem?.index !== undefined ? 'Edit' : 'Add'} {itemModalType === 'item' ? 'Item' : 'Tax'}
+            </Text>
+            
+            <View style={styles.inputGroup}>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
+                <TextInput
+                    style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: (theme as any).inputBg || theme.background }]}
+                    value={editingItem?.name}
+                    onChangeText={(text) => setEditingItem({ ...editingItem, name: text })}
+                    placeholder="Name"
+                    placeholderTextColor={theme.textSecondary}
+                />
+            </View>
+
+            {itemModalType === 'item' && (
+                <View style={styles.rowInputs}>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                        <Text style={[styles.label, { color: theme.textSecondary }]}>Qty</Text>
+                        <TextInput
+                            style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: (theme as any).inputBg || theme.background }]}
+                            value={editingItem?.quantity?.toString()}
+                            onChangeText={(text) => setEditingItem({ ...editingItem, quantity: text })}
+                            keyboardType="decimal-pad"
+                            placeholder="1"
+                            placeholderTextColor={theme.textSecondary}
+                        />
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                        <Text style={[styles.label, { color: theme.textSecondary }]}>Unit Price</Text>
+                        <TextInput
+                            style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: (theme as any).inputBg || theme.background }]}
+                            value={editingItem?.unit_price?.toString()}
+                            onChangeText={(text) => setEditingItem({ ...editingItem, unit_price: text })}
+                            keyboardType="decimal-pad"
+                            placeholder="0.00"
+                            placeholderTextColor={theme.textSecondary}
+                        />
+                    </View>
+                </View>
+            )}
+
+            {itemModalType === 'tax' && (
+                <View style={styles.inputGroup}>
+                    <Text style={[styles.label, { color: theme.textSecondary }]}>Amount</Text>
+                    <TextInput
+                        style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: (theme as any).inputBg || theme.background }]}
+                        value={editingItem?.amount?.toString()}
+                        onChangeText={(text) => setEditingItem({ ...editingItem, amount: text })}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        placeholderTextColor={theme.textSecondary}
+                    />
+                </View>
+            )}
+
+            <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                    style={[styles.modalButton, { borderColor: theme.border, borderWidth: 1 }]}
+                    onPress={() => setShowItemModal(false)}
+                >
+                    <Text style={{ color: theme.text }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.modalButton, { backgroundColor: theme.accent }]}
+                    onPress={() => handleUpdateItem(editingItem)}
+                >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save</Text>
+                </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -604,5 +913,53 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     height: '100%',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  editActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginLeft: 8,
+  },
+  inputGroup: {
+      marginBottom: 16,
+  },
+  label: {
+      fontSize: 12,
+      marginBottom: 6,
+  },
+  input: {
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+  },
+  rowInputs: {
+      flexDirection: 'row',
+      gap: 12,
+  },
+  modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 12,
+      marginTop: 20,
+  },
+  modalButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: 8,
   },
 });
