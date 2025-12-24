@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAI, GoogleAIBackend } from "firebase/ai";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -19,5 +20,6 @@ const auth = initializeAuth(app, {
 });
 
 const db = getFirestore(app);
+const ai = getAI(app, { backend: new GoogleAIBackend() });
 
-export { auth, db };
+export { auth, db, ai };
