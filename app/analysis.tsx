@@ -33,7 +33,8 @@ export default function Analysis() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
   
-  const [loading, setLoading] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
@@ -56,8 +57,12 @@ export default function Analysis() {
   );
 
   useEffect(() => {
-    analyzeImage();
-  }, [imageUri, activeBillId]);
+    if (billId) {
+        loadFromHistory();
+    } else if (imageUri) {
+        analyzeImage();
+    }
+  }, [imageUri, billId]);
 
   useEffect(() => {
     if (result?.summary?.currency && result.summary.currency !== targetCurrency) {
@@ -95,16 +100,10 @@ export default function Analysis() {
   };
 
   const analyzeImage = async () => {
-    // If we have a billId, we load from storage, skip analysis
-    if (activeBillId) {
-      loadFromHistory();
-      return;
-    }
-
     if (!imageUri) return;
 
     try {
-      setLoading(true);
+      setIsAnalyzing(true);
       setError(null);
       setRateLimited(false);
       
@@ -134,7 +133,7 @@ export default function Analysis() {
       console.error(err);
       setError("Failed to analyze bill. Please try again.");
     } finally {
-      setLoading(false);
+      setIsAnalyzing(false);
     }
   };
 
@@ -243,20 +242,24 @@ export default function Analysis() {
 
   const loadFromHistory = async () => {
     try {
-        setLoading(true);
+        setIsLoadingHistory(true);
         // In a real app with many items, we might want a getBill(id) method
         // For 20 items, filtering client-side is fine or using our getBills
         const bills = await StorageService.getBills();
-        const found = bills.find(b => b.id === activeBillId);
+        const found = bills.find(b => b.id === (activeBillId || billId));
         if (found) {
             setResult(found.fullData);
+            // Ensure exchange rates can load if target currency differs
+            if (found.fullData.summary.currency !== targetCurrency) {
+                 fetchRates(found.fullData.summary.currency);
+            }
         } else {
             setError("Bill not found in history.");
         }
     } catch (e) {
         setError("Failed to load bill.");
     } finally {
-        setLoading(false);
+        setIsLoadingHistory(false);
     }
   };
 
@@ -379,7 +382,7 @@ export default function Analysis() {
                   <Ionicons name="copy-outline" size={24} color={theme.text} />
                 </TouchableOpacity>
             )}
-            {!loading && (
+            {!isAnalyzing && !isLoadingHistory && (
               <TouchableOpacity 
                 onPress={isEditing ? handleSave : () => setIsEditing(true)}
                 disabled={!result}
@@ -396,7 +399,7 @@ export default function Analysis() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {imageUri && !loading && (
+        {imageUri && !isAnalyzing && !isLoadingHistory && (
           <Image 
             source={{ uri: imageUri as string }} 
             style={[styles.previewImage, { borderColor: theme.border }]} 
@@ -404,8 +407,13 @@ export default function Analysis() {
           />
         )}
 
-        {loading ? (
+        {isAnalyzing ? (
           <AnalysisLoading imageUri={imageUri as string} />
+        ) : isLoadingHistory ? (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.accent} />
+                <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading Bill...</Text>
+            </View>
         ) : error ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={48} color="#FF6B6B" />
