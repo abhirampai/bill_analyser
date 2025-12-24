@@ -1,4 +1,5 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getGenerativeModel } from "firebase/ai";
+import { ai } from "../firebaseConfig";
 
 const prompt = `Can you run ocr on this image and give the output as json, return isBill true if the image is a bill, return error if the image is not a bill.
 Return a short description & category of the bill.
@@ -48,10 +49,9 @@ Use this JSON schema:
   "error": {"type": "string"},
   "required": ["items", "summary", "isBill", "error", "description"]
 }`;
-const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
 
-const model = genAI.getGenerativeModel({
-  model: "models/gemini-2.5-flash",
+const model = getGenerativeModel(ai, {
+  model: "gemini-3-flash-preview",
   generationConfig: {
     responseMimeType: "application/json",
   },
