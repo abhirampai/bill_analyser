@@ -10,9 +10,7 @@ import { getLocales } from 'expo-localization';
 import { Modal, FlatList } from "react-native";
 import { CURRENCIES } from "./constants/currencies";
 
-
 import Colors from "./theme/colors";
-import { TextInput, KeyboardAvoidingView, Platform } from "react-native";
 
 export default function Index() {
   const router = useRouter();
@@ -21,13 +19,6 @@ export default function Index() {
   const isDark = colorScheme === "dark";
 
   const [currency, setCurrency] = useState<string>(getLocales()[0]?.currencyCode || 'USD');
-  const [showSettings, setShowSettings] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredCurrencies = CURRENCIES.filter(c => 
-    c.code.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   useEffect(() => {
     loadCurrency();
@@ -42,15 +33,7 @@ export default function Index() {
     }
   };
 
-  const saveCurrency = async (curr: string) => {
-    try {
-      await AsyncStorage.setItem('userCurrency', curr);
-      setCurrency(curr);
-      setShowSettings(false);
-    } catch (e) {
-      console.log('Failed to save currency');
-    }
-  };
+
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -132,10 +115,9 @@ export default function Index() {
 
             <TouchableOpacity 
               style={[styles.settingsButton, { backgroundColor: theme.cardBackground }]}
-              onPress={() => setShowSettings(true)}
+              onPress={() => router.push('/profile')}
             >
               <Ionicons name="settings-outline" size={20} color={theme.text} />
-              <Text style={[styles.currencyBadge, { color: theme.text }]}>{currency}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -177,9 +159,6 @@ export default function Index() {
           </TouchableOpacity>
         </View>
 
-        {/* Recent / Preview Section */}
-
-
         {/* Features Grid */}
         <View style={styles.featuresSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
@@ -204,84 +183,6 @@ export default function Index() {
           </View>
         </View>
       </ScrollView>
-
-
-
-
-      <Modal
-        visible={showSettings}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowSettings(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
-        >
-          <TouchableOpacity 
-            style={StyleSheet.absoluteFill} 
-            activeOpacity={1} 
-            onPress={() => setShowSettings(false)}
-          />
-          <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Select Currency</Text>
-              <TouchableOpacity onPress={() => setShowSettings(false)}>
-                <Ionicons name="close" size={24} color={theme.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={[styles.searchContainer, { backgroundColor: (theme as any).searchBg || theme.cardBackground, borderColor: theme.border }]}>
-              <Ionicons name="search" size={20} color={theme.textSecondary} />
-              <TextInput
-                style={[styles.searchInput, { color: theme.text }]}
-                placeholder="Search currency..."
-                placeholderTextColor={theme.textSecondary}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCorrect={false}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
-                  <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <FlatList
-              data={filteredCurrencies}
-              keyExtractor={(item) => item.code}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.currencyItem,
-                    { 
-                      backgroundColor: item.code === currency ? theme.accent + '20' : 'transparent',
-                      borderColor: theme.border
-                    }
-                  ]}
-                  onPress={() => saveCurrency(item.code)}
-                >
-                  <View>
-                    <Text style={[
-                      styles.currencyText, 
-                      { 
-                        color: item.code === currency ? theme.accent : theme.text,
-                        fontWeight: item.code === currency ? '700' : '600'
-                      }
-                    ]}>{item.code} - {item.symbol}</Text>
-                    <Text style={[styles.currencyName, { color: theme.textSecondary }]}>{item.name}</Text>
-                  </View>
-                  {item.code === currency && (
-                    <Ionicons name="checkmark" size={20} color={theme.accent} />
-                  )}
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
     </SafeAreaView>
   );
 }
