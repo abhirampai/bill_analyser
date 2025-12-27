@@ -23,7 +23,6 @@ import { ocr } from "./gemini/gemini";
 import { getExchangeRates } from "./services/exchangeRate";
 import { CURRENCIES } from "./constants/currencies";
 import { StorageService } from "./services/storage";
-import { auth } from "./firebaseConfig";
 import AnalysisLoading from "../components/AnalysisLoading";
 
 export default function Analysis() {
