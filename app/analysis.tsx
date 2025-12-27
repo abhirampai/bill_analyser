@@ -17,11 +17,13 @@ import { readAsStringAsync } from "expo-file-system/legacy";
 
 import * as Clipboard from "expo-clipboard";
 import { Modal, FlatList, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import Colors from "./theme/colors";
 import { ocr } from "./gemini/gemini";
 import { getExchangeRates } from "./services/exchangeRate";
 import { CURRENCIES } from "./constants/currencies";
 import { StorageService } from "./services/storage";
+import { auth } from "./firebaseConfig";
 import AnalysisLoading from "../components/AnalysisLoading";
 
 export default function Analysis() {
@@ -29,6 +31,7 @@ export default function Analysis() {
   const params = useLocalSearchParams();
   const { imageUri, userCurrency, billId } = params;
   const [activeBillId, setActiveBillId] = useState<string | null>(billId as string || null);
+  const [displayImage, setDisplayImage] = useState<string | null>(imageUri as string || null);
   
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
@@ -153,6 +156,20 @@ export default function Analysis() {
     return itemsTotal + taxTotal;
   };
 
+  const compressImage = async (uri: string): Promise<string> => {
+      try {
+          const manipResult = await manipulateAsync(
+              uri,
+              [{ resize: { width: 800 } }], // Resize to max width 800
+              { compress: 0.5, format: SaveFormat.JPEG, base64: true }
+          );
+          return `data:image/jpeg;base64,${manipResult.base64}`;
+      } catch (e) {
+          console.error("Failed to compress image", e);
+          return uri;
+      }
+  };
+
   const handleUpdateItem = (updatedItem: any) => {
     const newResult = { ...result };
     
@@ -249,6 +266,9 @@ export default function Analysis() {
         const found = bills.find(b => b.id === (activeBillId || billId));
         if (found) {
             setResult(found.fullData);
+            if (found.imageUrl) {
+                setDisplayImage(found.imageUrl);
+            }
             // Ensure exchange rates can load if target currency differs
             if (found.fullData.summary.currency !== targetCurrency) {
                  fetchRates(found.fullData.summary.currency);
@@ -272,7 +292,16 @@ export default function Analysis() {
     }
     
     // For initial auto-save
-    const { success, warning, id } = await StorageService.saveBill(data);
+    let uploadedImageUrl = undefined;
+    if (imageUri && typeof imageUri === 'string' && !imageUri.startsWith('http')) {
+        // It's a local file, compress and convert to base64
+        const base64Image = await compressImage(imageUri);
+        if (base64Image && base64Image.startsWith('data:')) {
+            uploadedImageUrl = base64Image;
+        }
+    }
+
+    const { success, warning, id } = await StorageService.saveBill(data, uploadedImageUrl);
     if (success) {
         if (id) setActiveBillId(id); // Capture the new ID
         
@@ -399,16 +428,16 @@ export default function Analysis() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {imageUri && !isAnalyzing && !isLoadingHistory && (
+        {displayImage && !isAnalyzing && !isLoadingHistory && (
           <Image 
-            source={{ uri: imageUri as string }} 
+            source={{ uri: displayImage }} 
             style={[styles.previewImage, { borderColor: theme.border }]} 
             resizeMode="contain"
           />
         )}
 
         {isAnalyzing ? (
-          <AnalysisLoading imageUri={imageUri as string} />
+          <AnalysisLoading imageUri={displayImage as string} />
         ) : isLoadingHistory ? (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.accent} />
