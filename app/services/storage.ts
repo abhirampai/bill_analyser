@@ -26,6 +26,7 @@ export interface SavedBill {
     icon: string;
   };
   fullData: any; // Store the complete analysis result
+  imageUrl?: string;
 }
 
 export const StorageService = {
@@ -48,6 +49,7 @@ export const StorageService = {
                 summary: data.summary,
                 category: data.category,
                 fullData: data.fullData,
+                imageUrl: data?.imageUrl,
             } as SavedBill;
         });
         return bills;
@@ -57,7 +59,7 @@ export const StorageService = {
     }
   },
 
-  async saveBill(analysisResult: any): Promise<{ success: boolean; warning?: boolean; id?: string }> {
+  async saveBill(analysisResult: any, imageUrl?: string): Promise<{ success: boolean; warning?: boolean; id?: string }> {
     const user = auth.currentUser;
     if (!user) {
         console.error('No user logged in, cannot save bill');
@@ -82,6 +84,7 @@ export const StorageService = {
         fullData: analysisResult,
         userId: user.uid,
         createdAt: serverTimestamp(),
+        imageUrl: imageUrl || null,
       };
 
       const docRef = await addDoc(collection(db, 'bills'), newBill);
@@ -121,7 +124,8 @@ export const StorageService = {
            summary: updatedBill.summary,
            category: updatedBill.category,
            fullData: updatedBill.fullData,
-           date: updatedBill.date
+           date: updatedBill.date,
+           imageUrl: updatedBill.imageUrl || null
        });
        return true;
     } catch (e) {
