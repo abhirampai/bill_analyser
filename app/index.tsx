@@ -7,8 +7,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
-import { Modal, FlatList } from "react-native";
-import { CURRENCIES } from "./constants/currencies";
 
 import Colors from "./theme/colors";
 

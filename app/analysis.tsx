@@ -9,6 +9,7 @@ import {
   useColorScheme,
   Image,
   Alert,
+  Modal, FlatList, TextInput, KeyboardAvoidingView, Platform
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,7 +17,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { readAsStringAsync } from "expo-file-system/legacy";
 
 import * as Clipboard from "expo-clipboard";
-import { Modal, FlatList, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import Colors from "./theme/colors";
 import { ocr } from "./gemini/gemini";

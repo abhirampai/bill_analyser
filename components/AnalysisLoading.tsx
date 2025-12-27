@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, Dimensions, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, Image, useColorScheme } from 'react-native';
 import Animated, { 
     useSharedValue, 
     useAnimatedStyle, 
@@ -7,12 +7,10 @@ import Animated, {
     withTiming, 
     withSequence,
     Easing,
-    withSpring
 } from 'react-native-reanimated';
 import Colors from '../app/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 
-const { width } = Dimensions.get('window');
 const SCAN_DURATION = 1500;
 
 interface AnalysisLoadingProps {
